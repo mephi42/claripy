@@ -7,7 +7,9 @@ from functools import reduce
 l = logging.getLogger("claripy.backends.backend_vsa")
 
 from . import Backend, BackendError
+from ..fp import FSort, RM
 from ..vsa import RegionAnnotation
+from ..vsa.bool_result import MaybeResult
 
 def arg_filter(f):
     @functools.wraps(f)
@@ -66,6 +68,7 @@ class BackendVSA(Backend):
         self._op_expr['BVV'] = self.BVV
         self._op_expr['BoolV'] = self.BoolV
         self._op_expr['BVS'] = self.BVS
+        self._op_expr['union'] = self.union
 
         # reduceable
         self._op_raw['__add__'] = self._op_add
@@ -75,6 +78,24 @@ class BackendVSA(Backend):
         self._op_raw['__xor__'] = self._op_xor
         self._op_raw['__and__'] = self._op_and
         self._op_raw['__mod__'] = self._op_mod
+
+        # fp
+        self._op_raw['FPV'] = self.FPV
+        self._op_raw['fpToFP'] = self.fpToFP
+        self._op_raw['fpToFPUnsigned'] = self.fpToFPUnsigned
+        self._op_raw['fpFP'] = self.fpFP
+        self._op_raw['fpToIEEEBV'] = self.fpToIEEEBV
+        self._op_raw['fpToSBV'] = self.fpToSBV
+        self._op_raw['fpToUBV'] = self.fpToUBV
+        self._op_raw['fpEQ'] = self.fpEQ
+        self._op_raw['fpGT'] = self.fpGT
+        self._op_raw['fpGEQ'] = self.fpGEQ
+        self._op_raw['fpLT'] = self.fpLT
+        self._op_raw['fpLEQ'] = self.fpLEQ
+        self._op_raw['fpAdd'] = self.fpAdd
+        self._op_raw['fpSub'] = self.fpSub
+        self._op_raw['fpMul'] = self.fpMul
+        self._op_raw['fpDiv'] = self.fpDiv
 
     @staticmethod
     def _op_add(*args):
@@ -110,9 +131,10 @@ class BackendVSA(Backend):
             return a
         if isinstance(a, BoolResult):
             return a
+        if isinstance(a, (FSort, RM)):
+            return a
 
-        # Not supported
-        raise BackendError()
+        raise BackendError('Unsupported type %s' % type(a))
 
     def _eval(self, expr, n, extra_constraints=(), solver=None, model_callback=None):
         if isinstance(expr, StridedInterval):
@@ -426,6 +448,70 @@ class BackendVSA(Backend):
 
     def constraint_to_si(self, expr):
         return Balancer(self, expr).compat_ret
+
+    @staticmethod
+    def FPV(_value, _sort):
+        return StridedInterval.top(64)
+
+    @staticmethod
+    def fpToFP(_a1, _a2, _a3=None):
+        return StridedInterval.top(64)
+
+    @staticmethod
+    def fpToFPUnsigned(_rm, _thing, _sort):
+        return StridedInterval.top(64)
+
+    @staticmethod
+    def fpFP(_sgn, _exp, _mantissa):
+        return StridedInterval.top(64)
+
+    @staticmethod
+    def fpToIEEEBV(_fpv):
+        return StridedInterval.top(64)
+
+    @staticmethod
+    def fpToSBV(_rm, _fp, _size):
+        return StridedInterval.top(64)
+
+    @staticmethod
+    def fpToUBV(_rm, _fp, _size):
+        return StridedInterval.top(64)
+
+    @staticmethod
+    def fpEQ(_rm, _a, _b):
+        return MaybeResult()
+
+    @staticmethod
+    def fpGT(_rm, _a, _b):
+        return MaybeResult()
+
+    @staticmethod
+    def fpGEQ(_rm, _a, _b):
+        return MaybeResult()
+
+    @staticmethod
+    def fpLT(_rm, _a, _b):
+        return MaybeResult()
+
+    @staticmethod
+    def fpLEQ(_rm, _a, _b):
+        return MaybeResult()
+
+    @staticmethod
+    def fpAdd(_rm, _a, _b):
+        return StridedInterval.top(64)
+
+    @staticmethod
+    def fpSub(_rm, _a, _b):
+        return StridedInterval.top(64)
+
+    @staticmethod
+    def fpMul(_rm, _a, _b):
+        return StridedInterval.top(64)
+
+    @staticmethod
+    def fpDiv(_rm, _a, _b):
+        return StridedInterval.top(64)
 
 from ..ast.base import Base
 from ..operations import backend_operations_vsa_compliant, expression_set_operations
