@@ -32,6 +32,7 @@ class SimplificationManager:
             'fpToFP': self.fptofp_simplifier,
             'StrExtract': self.str_extract_simplifier,
             'StrReverse': self.str_reverse_simplifier,
+            'union': self.union_simplifier,
         }
 
     def simplify(self, op, args):
@@ -826,6 +827,17 @@ class SimplificationManager:
     def str_reverse_simplifier(arg):
         return arg
 
+    @staticmethod
+    def union_simplifier(a, b):
+        # union(x, x) -> x
+        # union(union(x, y), y) -> union(x, y)
+        cur_a = a
+        while cur_a.op == 'union':
+            if cur_a.args[1] is b or (cur_a.args[1] == b).is_true():
+                return a
+            cur_a = cur_a.args[0]
+        if cur_a is b or (cur_a == b).is_true():
+            return a
 
 SIMPLE_OPS = ('Concat', 'SignExt', 'ZeroExt')
 
